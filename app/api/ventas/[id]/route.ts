@@ -57,17 +57,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const total = subtotal - totalDescuento + propina;
 
   await admin.from("detalles_venta").delete().eq("ventaId", id);
-  await admin.from("detalles_venta").insert(
-    items.map((i) => ({
-      id: crypto.randomUUID(),
-      ventaId: id,
-      productoId: i.productoId,
-      cantidad: i.cantidad,
-      precioUnitario: i.precioUnitario,
-      descuento: i.descuento,
-      subtotal: i.subtotal,
-    }))
-  );
+  if (items.length > 0) {
+    await admin.from("detalles_venta").insert(
+      items.map((i) => ({
+        id: crypto.randomUUID(),
+        ventaId: id,
+        productoId: i.productoId,
+        cantidad: i.cantidad,
+        precioUnitario: i.precioUnitario,
+        descuento: i.descuento,
+        subtotal: i.subtotal,
+      }))
+    );
+  }
 
   const { data: updated } = await admin.from("ventas").update({
     subtotal,

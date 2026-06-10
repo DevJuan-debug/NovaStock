@@ -239,8 +239,8 @@ export function PosView({ productos, categorias, mesas, boliranas, promociones, 
   }
 
   async function handleGuardarPedido() {
-    if (store.items.length === 0) {
-      toast.error("Agrega productos antes de guardar");
+    if (store.items.length === 0 && !store.mesaId && !store.boliranaId) {
+      toast.error("Selecciona una mesa o bolirana, o agrega productos");
       return;
     }
     setLoadingGuardar(true);
@@ -668,7 +668,7 @@ export function PosView({ productos, categorias, mesas, boliranas, promociones, 
               variant="secondary"
               size="sm"
               onClick={handleGuardarPedido}
-              disabled={store.items.length === 0 || loadingGuardar}
+              disabled={(store.items.length === 0 && !store.mesaId && !store.boliranaId) || loadingGuardar}
               className="flex-1 h-8 text-xs"
             >
               <Save className="h-3 w-3 mr-1" />

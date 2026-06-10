@@ -117,17 +117,19 @@ export async function POST(req: NextRequest) {
 
   if (ventaError) return NextResponse.json({ error: ventaError.message }, { status: 500 });
 
-  await admin.from("detalles_venta").insert(
-    items.map((i) => ({
-      id: crypto.randomUUID(),
-      ventaId,
-      productoId: i.productoId,
-      cantidad: i.cantidad,
-      precioUnitario: i.precioUnitario,
-      descuento: i.descuento,
-      subtotal: i.subtotal,
-    }))
-  );
+  if (items.length > 0) {
+    await admin.from("detalles_venta").insert(
+      items.map((i) => ({
+        id: crypto.randomUUID(),
+        ventaId,
+        productoId: i.productoId,
+        cantidad: i.cantidad,
+        precioUnitario: i.precioUnitario,
+        descuento: i.descuento,
+        subtotal: i.subtotal,
+      }))
+    );
+  }
 
   if (estado === "ABIERTA") {
     if (mesaId) await admin.from("mesas").update({ estado: "OCUPADA", updatedAt: now }).eq("id", mesaId);
@@ -166,6 +168,9 @@ export async function POST(req: NextRequest) {
 
   if (mesaId) {
     await admin.from("mesas").update({ estado: "DISPONIBLE", updatedAt: now }).eq("id", mesaId);
+  }
+  if (boliranaId) {
+    await admin.from("boliranas").update({ estado: "DISPONIBLE", updatedAt: now }).eq("id", boliranaId);
   }
 
   return NextResponse.json(venta, { status: 201 });
