@@ -17,6 +17,9 @@ export default async function NominaPage({ searchParams }: { searchParams: Promi
   const finMes = `${year}-${String(month).padStart(2, "0")}-${lastDay}`;
 
   const admin = createAdminClient();
+  const { data: dbUser } = await admin.from("users").select("role").eq("authId", user.id).single();
+  if (dbUser?.role !== "ADMIN") redirect("/dashboard");
+
 
   const [empleadosRes, pagosRes] = await Promise.all([
     admin.from("empleados").select("*").order("nombre", { ascending: true }),

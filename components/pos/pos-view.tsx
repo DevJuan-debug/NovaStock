@@ -37,8 +37,14 @@ import {
   CheckCircle,
   Moon,
   Tag,
+  Lock,
+  LockOpen,
+  AlertCircle,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
 
 interface Categoria {
   id: string;
@@ -96,6 +102,38 @@ interface VentaAbierta {
   }[];
 }
 
+interface AperturaCaja {
+  id: string;
+  saldoBase: number;
+  createdAt: string;
+  usuario: { nombre: string } | null;
+}
+
+interface VentaCierre {
+  id: string;
+  numero: string;
+  total: number;
+  metodoPago: string;
+  createdAt: string;
+}
+
+interface ProductoCierre {
+  productoId: string;
+  nombre: string;
+  cantidad: number;
+  subtotal: number;
+}
+
+interface PreviewCierre {
+  saldoBase: number;
+  totalIngresos: number;
+  totalEgresos: number;
+  saldoFinal: number;
+  periodoDesde: string;
+  ventas: VentaCierre[];
+  productosVendidos: ProductoCierre[];
+}
+
 interface PosViewProps {
   productos: Producto[];
   categorias: Categoria[];
@@ -106,6 +144,7 @@ interface PosViewProps {
   initialMesaId?: string | null;
   initialBoliranaId?: string | null;
   ventaAbierta?: VentaAbierta | null;
+  apertura: AperturaCaja | null;
 }
 
 const METODOS_PAGO = [
@@ -137,12 +176,17 @@ async function cargarVentaAbierta(tipo: "mesa" | "bolirana", id: string): Promis
 function isNocturnoAhora(horaInicioNocturno: string): boolean {
   const [hStr, mStr] = horaInicioNocturno.split(":");
   const ahora = new Date();
+  const currentH = ahora.getHours();
+  const currentM = ahora.getMinutes();
   const h = parseInt(hStr ?? "22");
   const m = parseInt(mStr ?? "0");
-  return ahora.getHours() > h || (ahora.getHours() === h && ahora.getMinutes() >= m);
+  const afterStart = currentH > h || (currentH === h && currentM >= m);
+  // Nocturno que inicia en la tarde/noche también aplica en madrugada (antes de las 6 AM)
+  const earlyMorning = h >= 12 && currentH < 6;
+  return afterStart || earlyMorning;
 }
 
-export function PosView({ productos, categorias, mesas, boliranas, promociones, config, initialMesaId, initialBoliranaId, ventaAbierta }: PosViewProps) {
+export function PosView({ productos, categorias, mesas, boliranas, promociones, config, initialMesaId, initialBoliranaId, ventaAbierta, apertura: initialApertura }: PosViewProps) {
   const store = usePosStore();
   const [buscar, setBuscar] = useState("");
   const [catActiva, setCatActiva] = useState<string>("todas");
@@ -153,6 +197,16 @@ export function PosView({ productos, categorias, mesas, boliranas, promociones, 
   const [loadingSelector, setLoadingSelector] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const initialized = useRef(false);
+
+  const [apertura, setApertura] = useState<AperturaCaja | null>(initialApertura);
+  const [showApertura, setShowApertura] = useState(false);
+  const [showCierre, setShowCierre] = useState(false);
+  const [loadingApertura, setLoadingApertura] = useState(false);
+  const [loadingCierre, setLoadingCierre] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [saldoBase, setSaldoBase] = useState("");
+  const [observaciones, setObservaciones] = useState("");
+  const [preview, setPreview] = useState<PreviewCierre | null>(null);
 
   useEffect(() => {
     if (initialized.current) return;
@@ -166,6 +220,61 @@ export function PosView({ productos, categorias, mesas, boliranas, promociones, 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleAbrirCaja() {
+    if (!saldoBase) return;
+    setLoadingApertura(true);
+    const res = await fetch("/api/caja/apertura", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ saldoBase: parseFloat(saldoBase) }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setApertura(data);
+      toast.success("Caja abierta");
+      setShowApertura(false);
+      setSaldoBase("");
+    } else {
+      const err = await res.json();
+      toast.error(err.error ?? "Error al abrir caja");
+    }
+    setLoadingApertura(false);
+  }
+
+  async function openModalCierre() {
+    setShowCierre(true);
+    setLoadingPreview(true);
+    setPreview(null);
+    const res = await fetch("/api/caja/cierre");
+    if (res.ok) {
+      setPreview(await res.json());
+    } else {
+      toast.error("Error al calcular cierre");
+      setShowCierre(false);
+    }
+    setLoadingPreview(false);
+  }
+
+  async function handleCerrarCaja() {
+    setLoadingCierre(true);
+    const res = await fetch("/api/caja/cierre", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ observaciones: observaciones || undefined }),
+    });
+    if (res.ok) {
+      toast.success("Caja cerrada correctamente");
+      setApertura(null);
+      setShowCierre(false);
+      setObservaciones("");
+      setPreview(null);
+    } else {
+      const err = await res.json();
+      toast.error(err.error ?? "Error al cerrar caja");
+    }
+    setLoadingCierre(false);
+  }
 
   async function handleMesaChange(mesaId: string) {
     if (store.ventaAbiertoId && store.mesaId !== mesaId) {
@@ -217,6 +326,10 @@ export function PosView({ productos, categorias, mesas, boliranas, promociones, 
   }
 
   function addToCart(producto: Producto) {
+    if (!apertura) {
+      toast.error("Debes abrir la caja antes de agregar productos");
+      return;
+    }
     const precio = (store.esNocturno && producto.precioNocturno != null)
       ? Number(producto.precioNocturno)
       : Number(producto.precio);
@@ -370,7 +483,38 @@ export function PosView({ productos, categorias, mesas, boliranas, promociones, 
   const tieneCuentaAbierta = !!store.ventaAbiertoId;
 
   return (
-    <div className="flex h-full">
+    <div className="flex flex-col h-full">
+      {/* Estado de caja */}
+      <div className={`flex items-center justify-between px-4 py-2 border-b border-border ${
+        apertura ? "bg-emerald-500/10" : "bg-red-500/10"
+      }`}>
+        <div className="flex items-center gap-2">
+          {apertura
+            ? <LockOpen className="h-4 w-4 text-emerald-600" />
+            : <Lock className="h-4 w-4 text-destructive" />}
+          {apertura ? (
+            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+              Caja abierta — base {formatCurrency(Number(apertura.saldoBase))}
+              {apertura.usuario && <span className="text-xs text-muted-foreground ml-2">· {apertura.usuario.nombre} · {formatDateTime(apertura.createdAt)}</span>}
+            </span>
+          ) : (
+            <span className="text-sm font-medium text-destructive">
+              Caja cerrada — abre la caja para comenzar a vender
+            </span>
+          )}
+        </div>
+        {apertura ? (
+          <Button size="sm" variant="destructive" onClick={openModalCierre} className="h-7 text-xs">
+            <Lock className="h-3 w-3 mr-1" /> Cerrar caja
+          </Button>
+        ) : (
+          <Button size="sm" onClick={() => setShowApertura(true)} className="h-7 text-xs">
+            <LockOpen className="h-3 w-3 mr-1" /> Abrir caja
+          </Button>
+        )}
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
       {/* Panel izquierdo: Productos */}
       <div className="flex flex-col flex-1 border-r border-border overflow-hidden">
         {/* Buscador + Categorías */}
@@ -773,6 +917,148 @@ export function PosView({ productos, categorias, mesas, boliranas, promociones, 
             <Button onClick={handlePagar} disabled={loadingPago} className="gap-2">
               <CreditCard className="h-4 w-4" />
               {loadingPago ? "Procesando..." : "Confirmar pago"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      </div>
+
+      {/* Modal: abrir caja */}
+      <Dialog open={showApertura} onOpenChange={setShowApertura}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LockOpen className="h-5 w-5" /> Abrir caja
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Ingresa el dinero en efectivo con el que inicias el turno.
+            </p>
+            <div>
+              <Label>Saldo base *</Label>
+              <Input
+                type="number"
+                value={saldoBase}
+                onChange={(e) => setSaldoBase(e.target.value)}
+                placeholder="0"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowApertura(false)}>Cancelar</Button>
+            <Button onClick={handleAbrirCaja} disabled={loadingApertura || !saldoBase}>
+              Abrir caja
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: cerrar caja */}
+      <Dialog open={showCierre} onOpenChange={setShowCierre}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" /> Cierre de caja
+            </DialogTitle>
+          </DialogHeader>
+          {loadingPreview ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">Calculando cierre...</div>
+          ) : preview ? (
+            <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto pr-1">
+              {/* Resumen financiero */}
+              <div className="rounded-lg border border-border divide-y divide-border">
+                <div className="flex justify-between px-4 py-3">
+                  <span className="text-sm text-muted-foreground">Saldo base</span>
+                  <span className="font-medium">{formatCurrency(preview.saldoBase)}</span>
+                </div>
+                <div className="flex justify-between px-4 py-3">
+                  <span className="text-sm text-emerald-600 flex items-center gap-1">
+                    <TrendingUp className="h-3.5 w-3.5" /> Ingresos del turno
+                  </span>
+                  <span className="font-medium text-emerald-600">+{formatCurrency(preview.totalIngresos)}</span>
+                </div>
+                <div className="flex justify-between px-4 py-3">
+                  <span className="text-sm text-destructive flex items-center gap-1">
+                    <TrendingDown className="h-3.5 w-3.5" /> Egresos del turno
+                  </span>
+                  <span className="font-medium text-destructive">-{formatCurrency(preview.totalEgresos)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between px-4 py-3 bg-muted/30">
+                  <span className="font-semibold">Saldo final en caja</span>
+                  <span className={`text-xl font-bold ${preview.saldoFinal >= 0 ? "text-emerald-600" : "text-destructive"}`}>
+                    {formatCurrency(preview.saldoFinal)}
+                  </span>
+                </div>
+              </div>
+
+              {preview.saldoFinal < 0 && (
+                <div className="flex items-start gap-2 text-sm text-destructive bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>El saldo final es negativo. Verifica los egresos antes de cerrar.</span>
+                </div>
+              )}
+
+              {/* Productos vendidos en el turno */}
+              <div>
+                <p className="text-sm font-semibold mb-2">
+                  Productos vendidos{" "}
+                  <span className="text-muted-foreground font-normal">
+                    ({preview.ventas.length} {preview.ventas.length === 1 ? "venta" : "ventas"})
+                  </span>
+                </p>
+                {preview.productosVendidos.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-3 border border-border rounded-lg">
+                    Sin ventas en este turno
+                  </p>
+                ) : (
+                  <div className="rounded-lg border border-border divide-y divide-border text-sm">
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-2 px-3 py-1.5 bg-muted/50 text-xs text-muted-foreground font-medium">
+                      <span>Producto</span>
+                      <span className="text-center">Cant.</span>
+                      <span className="text-right">Total</span>
+                    </div>
+                    {preview.productosVendidos.map((p) => (
+                      <div key={p.productoId} className="grid grid-cols-[1fr_auto_auto] gap-2 items-center px-3 py-2">
+                        <span className="truncate">{p.nombre}</span>
+                        <span className="text-center text-muted-foreground font-mono">×{p.cantidad}</span>
+                        <span className="text-right font-semibold">{formatCurrency(p.subtotal)}</span>
+                      </div>
+                    ))}
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-2 px-3 py-2 bg-muted/30 font-semibold">
+                      <span>Total</span>
+                      <span className="text-center text-muted-foreground font-mono">
+                        ×{preview.productosVendidos.reduce((s, p) => s + p.cantidad, 0)}
+                      </span>
+                      <span className="text-right">{formatCurrency(preview.productosVendidos.reduce((s, p) => s + p.subtotal, 0))}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label>Observaciones (opcional)</Label>
+                <Textarea
+                  value={observaciones}
+                  onChange={(e) => setObservaciones(e.target.value)}
+                  placeholder="Notas del turno, diferencias, incidencias..."
+                  rows={2}
+                />
+              </div>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCierre(false); setObservaciones(""); setPreview(null); }}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCerrarCaja}
+              disabled={loadingCierre || loadingPreview || !preview}
+            >
+              Confirmar cierre
             </Button>
           </DialogFooter>
         </DialogContent>

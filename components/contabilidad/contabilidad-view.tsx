@@ -11,9 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
-import { TrendingUp, TrendingDown, DollarSign, Plus, BookOpen, Lock, LockOpen, AlertCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Plus, BookOpen } from "lucide-react";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 
 interface Movimiento {
@@ -37,13 +35,6 @@ interface CierreCaja {
   usuario: { nombre: string };
 }
 
-interface AperturaCaja {
-  id: string;
-  saldoBase: number;
-  createdAt: string;
-  usuario: { nombre: string } | null;
-}
-
 interface Resumen {
   ingresosHoy: number;
   egresosHoy: number;
@@ -53,58 +44,27 @@ interface Resumen {
   balanceMes: number;
 }
 
-interface PreviewCierre {
-  saldoBase: number;
-  totalIngresos: number;
-  totalEgresos: number;
-  saldoFinal: number;
-  periodoDesde: string;
-}
-
 interface ContabilidadViewProps {
   movimientosHoy: Movimiento[];
   cierres: CierreCaja[];
   resumen: Resumen;
-  apertura: AperturaCaja | null;
 }
 
 export function ContabilidadView({
   movimientosHoy: initialMov,
-  cierres: initialCierres,
+  cierres,
   resumen,
-  apertura: initialApertura,
 }: ContabilidadViewProps) {
   const [movimientos, setMovimientos] = useState(initialMov);
-  const [cierres, setCierres] = useState(initialCierres);
-  const [apertura, setApertura] = useState<AperturaCaja | null>(initialApertura);
-
   const [showCreate, setShowCreate] = useState(false);
-  const [showApertura, setShowApertura] = useState(false);
-  const [showCierre, setShowCierre] = useState(false);
-
   const [loading, setLoading] = useState(false);
-  const [loadingApertura, setLoadingApertura] = useState(false);
-  const [loadingCierre, setLoadingCierre] = useState(false);
-  const [loadingPreview, setLoadingPreview] = useState(false);
-
   const [form, setForm] = useState({ tipo: "EGRESO", concepto: "", monto: "", referencia: "" });
-  const [saldoBase, setSaldoBase] = useState("");
-  const [observaciones, setObservaciones] = useState("");
-  const [preview, setPreview] = useState<PreviewCierre | null>(null);
 
   async function fetchMovimientos() {
     const res = await fetch("/api/contabilidad");
     if (res.ok) {
       const data = await res.json();
       setMovimientos(data.movimientos);
-    }
-  }
-
-  async function fetchCierres() {
-    const res = await fetch("/api/contabilidad?vista=cierres");
-    if (res.ok) {
-      const data = await res.json();
-      if (data.cierres) setCierres(data.cierres);
     }
   }
 
@@ -129,107 +89,8 @@ export function ContabilidadView({
     setLoading(false);
   }
 
-  async function handleAbrirCaja() {
-    if (!saldoBase) return;
-    setLoadingApertura(true);
-    const res = await fetch("/api/caja/apertura", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ saldoBase: parseFloat(saldoBase) }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setApertura(data);
-      toast.success("Caja abierta");
-      setShowApertura(false);
-      setSaldoBase("");
-    } else {
-      const err = await res.json();
-      toast.error(err.error ?? "Error al abrir caja");
-    }
-    setLoadingApertura(false);
-  }
-
-  async function openModalCierre() {
-    setShowCierre(true);
-    setLoadingPreview(true);
-    setPreview(null);
-    const res = await fetch("/api/caja/cierre");
-    if (res.ok) {
-      setPreview(await res.json());
-    } else {
-      toast.error("Error al calcular cierre");
-      setShowCierre(false);
-    }
-    setLoadingPreview(false);
-  }
-
-  async function handleCerrarCaja() {
-    setLoadingCierre(true);
-    const res = await fetch("/api/caja/cierre", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ observaciones: observaciones || undefined }),
-    });
-    if (res.ok) {
-      toast.success("Caja cerrada correctamente");
-      setApertura(null);
-      setShowCierre(false);
-      setObservaciones("");
-      setPreview(null);
-      fetchCierres();
-    } else {
-      const err = await res.json();
-      toast.error(err.error ?? "Error al cerrar caja");
-    }
-    setLoadingCierre(false);
-  }
-
   return (
     <div className="space-y-6">
-      {/* Estado de caja */}
-      <div className={`flex items-center justify-between rounded-lg border px-4 py-3 ${
-        apertura
-          ? "border-emerald-500/40 bg-emerald-500/10"
-          : "border-border bg-muted/40"
-      }`}>
-        <div className="flex items-center gap-3">
-          {apertura ? (
-            <LockOpen className="h-5 w-5 text-emerald-600" />
-          ) : (
-            <Lock className="h-5 w-5 text-muted-foreground" />
-          )}
-          <div>
-            {apertura ? (
-              <>
-                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                  Caja abierta — base {formatCurrency(Number(apertura.saldoBase))}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Abierta por {apertura.usuario?.nombre ?? "—"} a las {formatDateTime(apertura.createdAt)}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-sm font-semibold text-muted-foreground">Caja cerrada</p>
-                <p className="text-xs text-muted-foreground">Abre la caja para registrar el turno</p>
-              </>
-            )}
-          </div>
-        </div>
-        <div>
-          {apertura ? (
-            <Button size="sm" variant="destructive" onClick={openModalCierre}>
-              <Lock className="h-4 w-4 mr-1" /> Cerrar caja
-            </Button>
-          ) : (
-            <Button size="sm" onClick={() => setShowApertura(true)}>
-              <LockOpen className="h-4 w-4 mr-1" /> Abrir caja
-            </Button>
-          )}
-        </div>
-      </div>
-
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="bg-emerald-500/10 border-emerald-500/30">
@@ -430,111 +291,6 @@ export function ContabilidadView({
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={loading || !form.concepto || !form.monto}>Registrar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal: abrir caja */}
-      <Dialog open={showApertura} onOpenChange={setShowApertura}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <LockOpen className="h-5 w-5" /> Abrir caja
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">
-              Ingresa el dinero en efectivo con el que inicias el turno.
-            </p>
-            <div>
-              <Label>Saldo base *</Label>
-              <Input
-                type="number"
-                value={saldoBase}
-                onChange={(e) => setSaldoBase(e.target.value)}
-                placeholder="0"
-                autoFocus
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowApertura(false)}>Cancelar</Button>
-            <Button onClick={handleAbrirCaja} disabled={loadingApertura || !saldoBase}>
-              Abrir caja
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal: cerrar caja */}
-      <Dialog open={showCierre} onOpenChange={setShowCierre}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lock className="h-5 w-5" /> Cierre de caja
-            </DialogTitle>
-          </DialogHeader>
-
-          {loadingPreview ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">Calculando cierre...</div>
-          ) : preview ? (
-            <div className="space-y-4 py-2">
-              <div className="rounded-lg border border-border divide-y divide-border">
-                <div className="flex justify-between px-4 py-3">
-                  <span className="text-sm text-muted-foreground">Saldo base</span>
-                  <span className="font-medium">{formatCurrency(preview.saldoBase)}</span>
-                </div>
-                <div className="flex justify-between px-4 py-3">
-                  <span className="text-sm text-emerald-600 flex items-center gap-1">
-                    <TrendingUp className="h-3.5 w-3.5" /> Ingresos del turno
-                  </span>
-                  <span className="font-medium text-emerald-600">+{formatCurrency(preview.totalIngresos)}</span>
-                </div>
-                <div className="flex justify-between px-4 py-3">
-                  <span className="text-sm text-destructive flex items-center gap-1">
-                    <TrendingDown className="h-3.5 w-3.5" /> Egresos del turno
-                  </span>
-                  <span className="font-medium text-destructive">-{formatCurrency(preview.totalEgresos)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between px-4 py-3 bg-muted/30">
-                  <span className="font-semibold">Saldo final en caja</span>
-                  <span className={`text-xl font-bold ${preview.saldoFinal >= 0 ? "text-emerald-600" : "text-destructive"}`}>
-                    {formatCurrency(preview.saldoFinal)}
-                  </span>
-                </div>
-              </div>
-
-              {preview.saldoFinal < 0 && (
-                <div className="flex items-start gap-2 text-sm text-destructive bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span>El saldo final es negativo. Verifica los egresos antes de cerrar.</span>
-                </div>
-              )}
-
-              <div>
-                <Label>Observaciones (opcional)</Label>
-                <Textarea
-                  value={observaciones}
-                  onChange={(e) => setObservaciones(e.target.value)}
-                  placeholder="Notas del turno, diferencias, incidencias..."
-                  rows={3}
-                />
-              </div>
-            </div>
-          ) : null}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowCierre(false); setObservaciones(""); setPreview(null); }}>
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleCerrarCaja}
-              disabled={loadingCierre || loadingPreview || !preview}
-            >
-              Confirmar cierre
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

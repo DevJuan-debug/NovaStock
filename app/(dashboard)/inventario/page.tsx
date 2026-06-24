@@ -9,6 +9,9 @@ export default async function InventarioPage() {
   if (!user) redirect("/login");
 
   const admin = createAdminClient();
+  const { data: dbUser } = await admin.from("users").select("role").eq("authId", user.id).single();
+  if (dbUser?.role !== "ADMIN") redirect("/dashboard");
+
   const [productosRes, categoriasRes] = await Promise.all([
     admin.from("productos").select("*, categoria:categorias(*)").is("deletedAt", null).order("nombre"),
     admin.from("categorias").select("*").eq("activo", true).order("nombre"),

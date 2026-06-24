@@ -9,6 +9,8 @@ export default async function PromocionesPage() {
   if (!user) redirect("/login");
 
   const admin = createAdminClient();
+  const { data: dbUser } = await admin.from("users").select("role").eq("authId", user.id).single();
+  if (dbUser?.role !== "ADMIN") redirect("/dashboard");
 
   const [promoRes, productosRes, configRes] = await Promise.all([
     admin.from("promociones").select("*").order("createdAt", { ascending: false }),

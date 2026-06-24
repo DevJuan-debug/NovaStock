@@ -10,20 +10,21 @@ export default async function ContabilidadPage() {
   if (!user) redirect("/login");
 
   const admin = createAdminClient();
+  const { data: dbUser } = await admin.from("users").select("role").eq("authId", user.id).single();
+  if (dbUser?.role !== "ADMIN") redirect("/dashboard");
+
   const hoy = startOfDay(new Date());
   const inicioMes = startOfMonth(new Date());
 
-  const [movimientosHoyRes, movimientosMesRes, cierresRes, aperturaRes] = await Promise.all([
+  const [movimientosHoyRes, movimientosMesRes, cierresRes] = await Promise.all([
     admin.from("movimientos_caja").select("*").gte("createdAt", hoy.toISOString()).order("createdAt", { ascending: false }),
     admin.from("movimientos_caja").select("tipo, monto").gte("createdAt", inicioMes.toISOString()),
     admin.from("cierres_caja").select("*").order("createdAt", { ascending: false }).limit(20),
-    admin.from("aperturas_caja").select("*").eq("estado", "ABIERTA").order("createdAt", { ascending: false }).limit(1),
-  ]).catch(() => [{ data: [] as any[] }, { data: [] as any[] }, { data: [] as any[] }, { data: [] as any[] }]);
+  ]).catch(() => [{ data: [] as any[] }, { data: [] as any[] }, { data: [] as any[] }]);
 
   const movimientosHoy = movimientosHoyRes.data ?? [];
   const movimientosMes = movimientosMesRes.data ?? [];
   const cierresRaw = cierresRes.data ?? [];
-  const aperturaRaw = (aperturaRes.data ?? [])[0] ?? null;
 
   // Enrich movimientosHoy with usuario name
   const userIds = [...new Set(movimientosHoy.map((m: any) => m.userId).filter(Boolean))] as string[];
@@ -46,13 +47,6 @@ export default async function ContabilidadPage() {
     ...c,
     usuario: (cierreUsersData as any[])?.find((u) => u.id === c.userId) ?? null,
   }));
-
-  // Enrich apertura with usuario name
-  let apertura = null;
-  if (aperturaRaw) {
-    const { data: aperturaUser } = await admin.from("users").select("nombre").eq("id", aperturaRaw.userId).single();
-    apertura = { ...aperturaRaw, usuario: aperturaUser ?? null };
-  }
 
   // JS-side groupBy for resumen mensual
   const ingresosMes = movimientosMes
@@ -78,7 +72,6 @@ export default async function ContabilidadPage() {
       <ContabilidadView
         movimientosHoy={movimientosEnriquecidos as any}
         cierres={cierres as any}
-        apertura={apertura as any}
         resumen={{
           ingresosHoy,
           egresosHoy,

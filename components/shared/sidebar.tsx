@@ -28,58 +28,70 @@ const navItems = [
     label: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+    roles: ["ADMIN", "CAJERO", "MESERO", "BARTENDER"],
   },
   {
     label: "Mesas",
     href: "/mesas",
     icon: UtensilsCrossed,
+    roles: ["ADMIN", "CAJERO", "MESERO", "BARTENDER"],
   },
   {
     label: "Boliranas",
     href: "/boliranas",
     icon: Trophy,
+    roles: ["ADMIN", "CAJERO", "MESERO", "BARTENDER"],
   },
   {
     label: "POS / Ventas",
     href: "/pos",
     icon: ShoppingCart,
     badge: "POS",
+    roles: ["ADMIN", "CAJERO"],
   },
   {
     label: "Inventario",
     href: "/inventario",
     icon: Package,
+    roles: ["ADMIN"],
   },
   {
     label: "Promociones",
     href: "/promociones",
     icon: Tag,
+    roles: ["ADMIN"],
   },
   {
     label: "Contabilidad",
     href: "/contabilidad",
     icon: BookOpen,
+    roles: ["ADMIN"],
   },
   {
     label: "Nómina",
     href: "/nomina",
     icon: Banknote,
+    roles: ["ADMIN"],
   },
   {
     label: "Reportes",
     href: "/reportes",
     icon: BarChart3,
+    roles: ["ADMIN"],
   },
   {
     label: "Usuarios",
     href: "/usuarios",
     icon: Users,
+    roles: ["ADMIN"],
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ role }: { role?: string }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+
+  const visibleItems = navItems.filter((item) => !role || item.roles.includes(role));
 
   return (
     <aside
@@ -101,7 +113,7 @@ export function Sidebar() {
       {/* Nav */}
       <ScrollArea className="flex-1 px-2 py-4">
         <nav className="space-y-1">
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
             return (
               <Link key={item.href} href={item.href}>

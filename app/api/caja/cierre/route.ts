@@ -25,10 +25,12 @@ export async function GET(req: NextRequest) {
 
   if (!apertura) return NextResponse.json({ error: "No hay caja abierta" }, { status: 404 });
 
-  const { data: movimientos } = await admin
-    .from("movimientos_caja")
-    .select("tipo, monto")
-    .gte("createdAt", apertura["createdAt"] as string);
+  const since = apertura["createdAt"] as string;
+
+  const [{ data: movimientos }, { data: ventas }] = await Promise.all([
+    admin.from("movimientos_caja").select("tipo, monto").gte("createdAt", since),
+    admin.from("ventas").select("id, numero, total, metodoPago, createdAt, detalles:detalles_venta(productoId, cantidad, precioUnitario, subtotal, producto:productos(nombre))").eq("estado", "PAGADA").gte("createdAt", since).order("createdAt", { ascending: false }),
+  ]);
 
   const totalIngresos = (movimientos ?? [])
     .filter((m) => m.tipo === "INGRESO")
@@ -41,13 +43,44 @@ export async function GET(req: NextRequest) {
   const saldoBase = Number(apertura["saldoBase"]);
   const saldoFinal = saldoBase + totalIngresos - totalEgresos;
 
+  // Agrupar detalles por producto sumando cantidades y subtotales
+  const productosMap = new Map<string, { nombre: string; cantidad: number; subtotal: number }>();
+  for (const v of ventas ?? []) {
+    for (const d of (v as any).detalles ?? []) {
+      const nombre = d.producto?.nombre ?? "Desconocido";
+      const existing = productosMap.get(d.productoId);
+      if (existing) {
+        existing.cantidad += Number(d.cantidad);
+        existing.subtotal += Number(d.subtotal);
+      } else {
+        productosMap.set(d.productoId, {
+          nombre,
+          cantidad: Number(d.cantidad),
+          subtotal: Number(d.subtotal),
+        });
+      }
+    }
+  }
+
+  const productosVendidos = Array.from(productosMap.entries())
+    .map(([productoId, data]) => ({ productoId, ...data }))
+    .sort((a, b) => b.cantidad - a.cantidad);
+
   return NextResponse.json({
     aperturaId: apertura["id"],
-    periodoDesde: apertura["createdAt"],
+    periodoDesde: since,
     saldoBase,
     totalIngresos,
     totalEgresos,
     saldoFinal,
+    ventas: (ventas ?? []).map((v) => ({
+      id: v.id,
+      numero: (v as any).numero,
+      total: Number((v as any).total),
+      metodoPago: (v as any).metodoPago,
+      createdAt: (v as any).createdAt,
+    })),
+    productosVendidos,
   });
 }
 

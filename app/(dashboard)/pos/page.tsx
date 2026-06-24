@@ -29,6 +29,12 @@ export default async function PosPage({
     admin.from("configuracion").select("valor").eq("clave", "horaInicioNocturno").maybeSingle(),
   ]).catch(() => [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: null }]);
 
+  let aperturaActual = null;
+  try {
+    const { data } = await admin.from("aperturas_caja").select("*, usuario:users(nombre)").eq("estado", "ABIERTA").maybeSingle();
+    aperturaActual = data;
+  } catch { aperturaActual = null; }
+
   let ventaAbierta = null;
   if (mesaId || boliranaId) {
     let q = admin
@@ -55,6 +61,7 @@ export default async function PosPage({
         initialMesaId={mesaId ?? null}
         initialBoliranaId={boliranaId ?? null}
         ventaAbierta={ventaAbierta as any}
+        apertura={aperturaActual as any}
       />
     </div>
   );
