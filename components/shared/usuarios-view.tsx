@@ -34,7 +34,7 @@ export function UsuariosView({ usuarios: initial }: { usuarios: Usuario[] }) {
   const [usuarios, setUsuarios] = useState(initial);
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ email: "", nombre: "", role: "MESERO", password: "" });
+  const [form, setForm] = useState({ email: "", nombre: "", role: "CAJERO", password: "" });
 
   async function fetchUsuarios() {
     const res = await fetch("/api/usuarios");
@@ -51,7 +51,7 @@ export function UsuariosView({ usuarios: initial }: { usuarios: Usuario[] }) {
     if (res.ok) {
       toast.success("Usuario creado correctamente");
       setShowCreate(false);
-      setForm({ email: "", nombre: "", role: "MESERO", password: "" });
+      setForm({ email: "", nombre: "", role: "CAJERO", password: "" });
       fetchUsuarios();
     } else {
       const err = await res.json();
@@ -146,8 +146,6 @@ export function UsuariosView({ usuarios: initial }: { usuarios: Usuario[] }) {
                 <SelectContent>
                   <SelectItem value="ADMIN">Administrador</SelectItem>
                   <SelectItem value="CAJERO">Cajero</SelectItem>
-                  <SelectItem value="MESERO">Mesero</SelectItem>
-                  <SelectItem value="BARTENDER">Bartender</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -53,7 +53,7 @@ export function MesasView({ initialMesas }: MesasViewProps) {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState<Mesa | null>(null);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ numero: "", nombre: "", capacidad: "4", zona: "" });
+  const [form, setForm] = useState({ nombre: "", capacidad: "4", zona: "" });
 
   async function fetchMesas() {
     const res = await fetch("/api/mesas");
@@ -66,8 +66,7 @@ export function MesasView({ initialMesas }: MesasViewProps) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        numero: parseInt(form.numero),
-        nombre: form.nombre || undefined,
+        nombre: form.nombre,
         capacidad: parseInt(form.capacidad),
         zona: form.zona || undefined,
       }),
@@ -75,7 +74,7 @@ export function MesasView({ initialMesas }: MesasViewProps) {
     if (res.ok) {
       toast.success("Mesa creada correctamente");
       setShowCreate(false);
-      setForm({ numero: "", nombre: "", capacidad: "4", zona: "" });
+      setForm({ nombre: "", capacidad: "4", zona: "" });
       fetchMesas();
     } else {
       toast.error("Error al crear la mesa");
@@ -161,10 +160,7 @@ export function MesasView({ initialMesas }: MesasViewProps) {
               <CardHeader className="pb-2 pt-4 px-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="text-xl font-bold">{mesa.numero}</CardTitle>
-                    {mesa.nombre && (
-                      <p className="text-xs text-muted-foreground">{mesa.nombre}</p>
-                    )}
+                    <CardTitle className="text-base font-bold leading-tight">{mesa.nombre ?? `Mesa ${mesa.numero}`}</CardTitle>
                   </div>
                   <div className="flex gap-1">
                     <Button
@@ -261,7 +257,7 @@ export function MesasView({ initialMesas }: MesasViewProps) {
         <Dialog open onOpenChange={() => setShowEdit(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Editar Mesa {showEdit.numero}</DialogTitle>
+              <DialogTitle>Editar {showEdit.nombre ?? `Mesa ${showEdit.numero}`}</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <div>
@@ -295,32 +291,21 @@ export function MesasView({ initialMesas }: MesasViewProps) {
             <DialogTitle>Nueva Mesa</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Número *</Label>
-                <Input
-                  type="number"
-                  value={form.numero}
-                  onChange={(e) => setForm({ ...form, numero: e.target.value })}
-                  placeholder="1"
-                />
-              </div>
-              <div>
-                <Label>Capacidad</Label>
-                <Input
-                  type="number"
-                  value={form.capacidad}
-                  onChange={(e) => setForm({ ...form, capacidad: e.target.value })}
-                  placeholder="4"
-                />
-              </div>
-            </div>
             <div>
-              <Label>Nombre (opcional)</Label>
+              <Label>Nombre *</Label>
               <Input
                 value={form.nombre}
                 onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                placeholder="VIP, Terraza, etc."
+                placeholder="Mesa 1, VIP, Terraza..."
+              />
+            </div>
+            <div>
+              <Label>Capacidad</Label>
+              <Input
+                type="number"
+                value={form.capacidad}
+                onChange={(e) => setForm({ ...form, capacidad: e.target.value })}
+                placeholder="4"
               />
             </div>
             <div>
@@ -334,7 +319,7 @@ export function MesasView({ initialMesas }: MesasViewProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={loading || !form.numero}>
+            <Button onClick={handleCreate} disabled={loading || !form.nombre}>
               Crear Mesa
             </Button>
           </DialogFooter>

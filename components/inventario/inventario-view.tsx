@@ -323,36 +323,28 @@ export function InventarioView({ productos: initial, categorias }: InventarioVie
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-emerald-600"
+                            variant="ghost" size="icon" className="h-7 w-7 text-emerald-600"
                             title="Entrada"
                             onClick={() => { setShowMovimiento(p); setMovForm({ tipo: "ENTRADA", cantidad: "", motivo: "" }); }}
                           >
                             <ArrowDown className="h-3 w-3" />
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-amber-600"
+                            variant="ghost" size="icon" className="h-7 w-7 text-amber-600"
                             title="Salida"
                             onClick={() => { setShowMovimiento(p); setMovForm({ tipo: "SALIDA", cantidad: "", motivo: "" }); }}
                           >
                             <ArrowUp className="h-3 w-3" />
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
+                            variant="ghost" size="icon" className="h-7 w-7"
                             title="Ajuste"
                             onClick={() => { setShowMovimiento(p); setMovForm({ tipo: "AJUSTE", cantidad: "", motivo: "" }); }}
                           >
                             <RefreshCw className="h-3 w-3" />
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
+                            variant="ghost" size="icon" className="h-7 w-7"
                             onClick={() => {
                               setShowEdit(p);
                               setForm({
@@ -372,9 +364,7 @@ export function InventarioView({ productos: initial, categorias }: InventarioVie
                             <Edit className="h-3 w-3" />
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive"
+                            variant="ghost" size="icon" className="h-7 w-7 text-destructive"
                             onClick={() => handleDelete(p.id)}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -504,9 +494,7 @@ export function InventarioView({ productos: initial, categorias }: InventarioVie
               <div>
                 <Label>Tipo de movimiento</Label>
                 <Select value={movForm.tipo} onValueChange={(v) => setMovForm({ ...movForm, tipo: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ENTRADA">Entrada (aumentar stock)</SelectItem>
                     <SelectItem value="SALIDA">Salida (reducir stock)</SelectItem>

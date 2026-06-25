@@ -15,6 +15,7 @@ import {
   Beer,
   Banknote,
   Tag,
+  Truck,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -65,6 +66,12 @@ const navItems = [
     label: "Contabilidad",
     href: "/contabilidad",
     icon: BookOpen,
+    roles: ["ADMIN"],
+  },
+  {
+    label: "Proveedores",
+    href: "/proveedores",
+    icon: Truck,
     roles: ["ADMIN"],
   },
   {

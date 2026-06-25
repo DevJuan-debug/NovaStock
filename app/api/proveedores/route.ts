@@ -3,10 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
 
-const MesaSchema = z.object({
+const ProveedorSchema = z.object({
   nombre: z.string().min(1),
-  capacidad: z.number().int().positive().default(4),
-  zona: z.string().optional(),
+  contacto: z.string().optional(),
+  telefono: z.string().optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  direccion: z.string().optional(),
+  nit: z.string().optional(),
 });
 
 export async function GET() {
@@ -15,27 +18,14 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: mesas, error } = await admin
-    .from("mesas")
+  const { data, error } = await admin
+    .from("proveedores")
     .select("*")
     .is("deletedAt", null)
-    .order("numero");
+    .order("nombre");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  const mesaIds = mesas?.map((m) => m.id) ?? [];
-  const { data: ventas } = await admin
-    .from("ventas")
-    .select("*, detalles:detalles_venta(*)")
-    .in("mesaId", mesaIds)
-    .eq("estado", "ABIERTA");
-
-  const result = mesas?.map((m) => ({
-    ...m,
-    ventas: ventas?.filter((v) => v.mesaId === m.id) ?? [],
-  }));
-
-  return NextResponse.json(result);
+  return NextResponse.json(data);
 }
 
 export async function POST(req: NextRequest) {
@@ -44,19 +34,17 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const parsed = MesaSchema.safeParse(body);
+  const parsed = ProveedorSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const admin = createAdminClient();
-  const { data: rows } = await admin.from("mesas").select("numero").order("numero", { ascending: false }).limit(1);
-  const numero = (rows?.[0]?.numero ?? 0) + 1;
   const now = new Date().toISOString();
-  const { data: mesa, error } = await admin
-    .from("mesas")
-    .insert({ id: crypto.randomUUID(), numero, ...parsed.data, updatedAt: now })
+  const { data, error } = await admin
+    .from("proveedores")
+    .insert({ id: crypto.randomUUID(), ...parsed.data, updatedAt: now })
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(mesa, { status: 201 });
+  return NextResponse.json(data, { status: 201 });
 }

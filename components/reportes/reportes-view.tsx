@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   Download, FileSpreadsheet, FileText, BarChart3, TrendingUp, TrendingDown,
-  DollarSign, Package, Users, ShoppingBag, Wallet,
+  DollarSign, Package, Users, ShoppingBag, Wallet, Truck,
 } from "lucide-react";
 import { formatCurrency, formatDateTime, formatDate } from "@/lib/utils";
 
@@ -48,12 +48,22 @@ interface PagoNominaReporte {
   fecha: string;
 }
 
+interface CompraReporte {
+  id: string;
+  total: number;
+  estado: string;
+  observacion: string | null;
+  createdAt: string;
+  proveedor: { id: string; nombre: string } | null;
+}
+
 interface Resumen {
   totalVentas: number;
   totalTransacciones: number;
   promedioPorVenta: number;
   totalCostoProductos: number;
   totalNomina: number;
+  totalCompras: number;
   utilidadBruta: number;
   utilidadNeta: number;
 }
@@ -94,6 +104,7 @@ export function ReportesView() {
   const [ventas, setVentas] = useState<VentaReporte[]>([]);
   const [porProducto, setPorProducto] = useState<ProductoReporte[]>([]);
   const [nomina, setNomina] = useState<PagoNominaReporte[]>([]);
+  const [compras, setCompras] = useState<CompraReporte[]>([]);
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [porMetodo, setPorMetodo] = useState<{ metodo: string; total: number; count: number }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -111,6 +122,7 @@ export function ReportesView() {
       setVentas(data.ventas);
       setPorProducto(data.porProducto);
       setNomina(data.nomina);
+      setCompras(data.compras ?? []);
       setResumen(data.resumen);
       setPorMetodo(data.porMetodo);
 
@@ -132,6 +144,7 @@ export function ReportesView() {
       { Concepto: "Costo de productos vendidos", Valor: -resumen.totalCostoProductos },
       { Concepto: "Utilidad bruta", Valor: resumen.utilidadBruta },
       { Concepto: "Gastos de nómina", Valor: -resumen.totalNomina },
+      { Concepto: "Pagos a proveedores", Valor: -resumen.totalCompras },
       { Concepto: "UTILIDAD NETA", Valor: resumen.utilidadNeta },
     ]);
     utils.book_append_sheet(wb, wsResumen, "Resumen");
@@ -176,6 +189,19 @@ export function ReportesView() {
         }))
       );
       utils.book_append_sheet(wb, wsNomina, "Nómina");
+    }
+
+    // Hoja 5: Compras a proveedores
+    if (compras.length > 0) {
+      const wsCompras = utils.json_to_sheet(
+        compras.map((c) => ({
+          "Fecha": formatDate(c.createdAt),
+          "Proveedor": c.proveedor?.nombre ?? "—",
+          "Observación": c.observacion ?? "—",
+          "Total": Number(c.total),
+        }))
+      );
+      utils.book_append_sheet(wb, wsCompras, "Compras proveedores");
     }
 
     writeFile(wb, `reporte-novastock-${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -323,12 +349,7 @@ export function ReportesView() {
             <StatCard title="Ingresos por ventas" value={formatCurrency(resumen.totalVentas)} icon={TrendingUp} color="green" />
             <StatCard title="Costo de productos" value={formatCurrency(resumen.totalCostoProductos)} icon={Package} color="red" />
             <StatCard title="Nómina del período" value={formatCurrency(resumen.totalNomina)} icon={Users} color="red" />
-            <StatCard
-              title="Utilidad bruta"
-              value={formatCurrency(resumen.utilidadBruta)}
-              icon={Wallet}
-              color={resumen.utilidadBruta >= 0 ? "green" : "red"}
-            />
+            <StatCard title="Pagos a proveedores" value={formatCurrency(resumen.totalCompras)} icon={Truck} color="red" />
           </div>
 
           {/* Utilidad neta destacada */}
@@ -340,7 +361,7 @@ export function ReportesView() {
             <div>
               <p className="text-sm text-muted-foreground font-medium">UTILIDAD NETA</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Ventas − Costo de productos − Nómina · {resumen.totalTransacciones} ventas · Prom. {formatCurrency(resumen.promedioPorVenta)}
+                Ventas − Costo de productos − Nómina − Compras · {resumen.totalTransacciones} ventas · Prom. {formatCurrency(resumen.promedioPorVenta)}
               </p>
             </div>
             <p className={`text-4xl font-bold tabular-nums ${resumen.utilidadNeta >= 0 ? "text-emerald-600" : "text-destructive"}`}>
@@ -353,6 +374,7 @@ export function ReportesView() {
               <TabsTrigger value="productos">Por producto</TabsTrigger>
               <TabsTrigger value="ventas">Detalle ventas</TabsTrigger>
               <TabsTrigger value="nomina">Nómina</TabsTrigger>
+              <TabsTrigger value="proveedores">Pagos proveedor</TabsTrigger>
               <TabsTrigger value="metodos">Métodos de pago</TabsTrigger>
             </TabsList>
 
@@ -501,6 +523,49 @@ export function ReportesView() {
                     <span className="text-sm text-muted-foreground">{nomina.length} pagos</span>
                     <span className="text-sm font-semibold text-destructive">
                       Total: {formatCurrency(resumen.totalNomina)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* PAGOS A PROVEEDOR */}
+            <TabsContent value="proveedores" className="space-y-2">
+              <div className="rounded-lg border border-border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Proveedor</TableHead>
+                      <TableHead>Observación</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {compras.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell className="text-sm">{formatDate(c.createdAt)}</TableCell>
+                        <TableCell className="font-medium">{c.proveedor?.nombre ?? "—"}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{c.observacion ?? "—"}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums text-destructive">
+                          {formatCurrency(Number(c.total))}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {compras.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
+                          No hay compras a proveedores en este período
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+                {compras.length > 0 && (
+                  <div className="flex justify-between items-center px-4 py-3 border-t border-border bg-muted/30">
+                    <span className="text-sm text-muted-foreground">{compras.length} compra(s)</span>
+                    <span className="text-sm font-semibold text-destructive">
+                      Total: {formatCurrency(resumen.totalCompras)}
                     </span>
                   </div>
                 )}

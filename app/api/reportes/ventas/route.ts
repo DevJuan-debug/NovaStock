@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   const nominaStart = fechaDesde.toISOString().split("T")[0];
   const nominaEnd = fechaHasta.toISOString().split("T")[0];
 
-  const [ventasRes, nominaRes] = await Promise.all([
+  const [ventasRes, nominaRes, comprasRes] = await Promise.all([
     admin
       .from("ventas")
       .select("*")
@@ -45,12 +45,30 @@ export async function GET(req: NextRequest) {
       .select("monto, empleadoId, concepto, fecha")
       .gte("fecha", nominaStart)
       .lte("fecha", nominaEnd),
+    admin
+      .from("compras")
+      .select("id, total, estado, observacion, createdAt, proveedorId")
+      .eq("estado", "RECIBIDA")
+      .gte("createdAt", fechaDesde.toISOString())
+      .lte("createdAt", fechaHasta.toISOString())
+      .order("createdAt", { ascending: false }),
   ]);
 
   const ventas = ventasRes.data ?? [];
   const nominaPagos = nominaRes.data ?? [];
+  const comprasData = comprasRes.data ?? [];
 
   if (ventasRes.error) return NextResponse.json({ error: ventasRes.error.message }, { status: 500 });
+
+  // Enrich compras with proveedor names
+  const proveedorIds = [...new Set(comprasData.map((c) => c.proveedorId))] as string[];
+  const proveedoresRes = proveedorIds.length > 0
+    ? await admin.from("proveedores").select("id, nombre").in("id", proveedorIds)
+    : { data: [] };
+  const comprasConProveedor = comprasData.map((c) => ({
+    ...c,
+    proveedor: (proveedoresRes.data as { id: string; nombre: string }[])?.find((p) => p.id === c.proveedorId) ?? null,
+  }));
 
   const ventaIds = ventas.map((v) => v.id);
   const mesaIds = [...new Set(ventas.filter((v) => v.mesaId).map((v) => v.mesaId))] as string[];
@@ -111,8 +129,9 @@ export async function GET(req: NextRequest) {
   const totalTransacciones = ventas.length;
   const totalCostoProductos = porProducto.reduce((s, p) => s + p.costoTotal, 0);
   const totalNomina = nominaPagos.reduce((s, p) => s + Number(p.monto), 0);
+  const totalCompras = comprasConProveedor.reduce((s, c) => s + Number(c.total), 0);
   const utilidadBruta = totalVentas - totalCostoProductos;
-  const utilidadNeta = utilidadBruta - totalNomina;
+  const utilidadNeta = utilidadBruta - totalNomina - totalCompras;
 
   const porMetodo = Object.entries(
     ventas.reduce((acc: Record<string, { total: number; count: number }>, v) => {
@@ -128,6 +147,7 @@ export async function GET(req: NextRequest) {
     ventas: ventasConRelaciones,
     porProducto,
     nomina: nominaPagos,
+    compras: comprasConProveedor,
     porMetodo,
     resumen: {
       totalVentas,
@@ -135,6 +155,7 @@ export async function GET(req: NextRequest) {
       promedioPorVenta: totalTransacciones > 0 ? totalVentas / totalTransacciones : 0,
       totalCostoProductos,
       totalNomina,
+      totalCompras,
       utilidadBruta,
       utilidadNeta,
     },

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Sidebar } from "@/components/shared/sidebar";
 import { Header } from "@/components/shared/header";
+import { SessionTimeout } from "@/components/shared/session-timeout";
 
 export default async function DashboardLayout({
   children,
@@ -25,6 +26,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <SessionTimeout role={dbUser?.role ?? ""} />
       {/* Sidebar solo visible en desktop */}
       <div className="hidden md:block">
         <Sidebar role={dbUser?.role ?? ""} />

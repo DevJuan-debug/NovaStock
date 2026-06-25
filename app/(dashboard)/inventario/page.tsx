@@ -15,7 +15,7 @@ export default async function InventarioPage() {
   const [productosRes, categoriasRes] = await Promise.all([
     admin.from("productos").select("*, categoria:categorias(*)").is("deletedAt", null).order("nombre"),
     admin.from("categorias").select("*").eq("activo", true).order("nombre"),
-  ]).catch(() => [{ data: [] }, { data: [] }]);
+  ]);
 
   return (
     <div className="space-y-6">

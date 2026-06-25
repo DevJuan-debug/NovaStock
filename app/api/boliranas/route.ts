@@ -4,8 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
 
 const BoliranaSchema = z.object({
-  numero: z.number().int().positive(),
-  nombre: z.string().optional(),
+  nombre: z.string().min(1),
   precioPorHora: z.number().positive().default(20000),
 });
 
@@ -48,10 +47,12 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const admin = createAdminClient();
+  const { data: rows } = await admin.from("boliranas").select("numero").order("numero", { ascending: false }).limit(1);
+  const numero = (rows?.[0]?.numero ?? 0) + 1;
   const now = new Date().toISOString();
   const { data: bolirana, error } = await admin
     .from("boliranas")
-    .insert({ id: crypto.randomUUID(), ...parsed.data, updatedAt: now })
+    .insert({ id: crypto.randomUUID(), numero, ...parsed.data, updatedAt: now })
     .select()
     .single();
 

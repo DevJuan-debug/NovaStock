@@ -93,7 +93,7 @@ export function BoliranaView({ initialBoliranas }: { initialBoliranas: Bolirana[
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [form, setForm] = useState({ numero: "", nombre: "", precioPorHora: "20000" });
+  const [form, setForm] = useState({ nombre: "", precioPorHora: "20000" });
 
   async function fetchBoliranas() {
     const res = await fetch("/api/boliranas");
@@ -112,15 +112,14 @@ export function BoliranaView({ initialBoliranas }: { initialBoliranas: Bolirana[
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        numero: parseInt(form.numero),
-        nombre: form.nombre || undefined,
+        nombre: form.nombre,
         precioPorHora: parseFloat(form.precioPorHora),
       }),
     });
     if (res.ok) {
       toast.success("Bolirana creada");
       setShowCreate(false);
-      setForm({ numero: "", nombre: "", precioPorHora: "20000" });
+      setForm({ nombre: "", precioPorHora: "20000" });
       fetchBoliranas();
     } else toast.error("Error al crear bolirana");
     setLoading(null);
@@ -208,11 +207,10 @@ export function BoliranaView({ initialBoliranas }: { initialBoliranas: Bolirana[
               <CardHeader className="pb-2 pt-4 px-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="text-xl font-bold flex items-center gap-2">
+                    <CardTitle className="text-base font-bold flex items-center gap-2 leading-tight">
                       <Trophy className="h-4 w-4 text-amber-500" />
-                      Bolirana {b.numero}
+                      {b.nombre ?? `Bolirana ${b.numero}`}
                     </CardTitle>
-                    {b.nombre && <p className="text-xs text-muted-foreground mt-0.5">{b.nombre}</p>}
                   </div>
                   <Button
                     variant="ghost"
@@ -333,36 +331,26 @@ export function BoliranaView({ initialBoliranas }: { initialBoliranas: Bolirana[
             <DialogTitle>Nueva Bolirana</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Número *</Label>
-                <Input
-                  type="number"
-                  value={form.numero}
-                  onChange={(e) => setForm({ ...form, numero: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Precio/hora (COP)</Label>
-                <Input
-                  type="number"
-                  value={form.precioPorHora}
-                  onChange={(e) => setForm({ ...form, precioPorHora: e.target.value })}
-                />
-              </div>
-            </div>
             <div>
-              <Label>Nombre (opcional)</Label>
+              <Label>Nombre *</Label>
               <Input
                 value={form.nombre}
                 onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                placeholder="Ej: Profesional, Estándar..."
+                placeholder="Rana 1, Profesional, Estándar..."
+              />
+            </div>
+            <div>
+              <Label>Precio/hora (COP)</Label>
+              <Input
+                type="number"
+                value={form.precioPorHora}
+                onChange={(e) => setForm({ ...form, precioPorHora: e.target.value })}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={loading === "create" || !form.numero}>
+            <Button onClick={handleCreate} disabled={loading === "create" || !form.nombre}>
               Crear Bolirana
             </Button>
           </DialogFooter>
