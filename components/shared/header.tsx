@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,9 +15,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Moon, Sun, LogOut, User, Settings } from "lucide-react";
+import { Moon, Sun, LogOut, User, Settings, Menu } from "lucide-react";
 import { useTheme } from "next-themes";
 import { getInitials } from "@/lib/utils";
+import { Sidebar } from "@/components/shared/sidebar";
 
 interface HeaderProps {
   userEmail?: string;
@@ -26,6 +29,7 @@ interface HeaderProps {
 export function Header({ userEmail, userName, userRole }: HeaderProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -46,8 +50,18 @@ export function Header({ userEmail, userName, userRole }: HeaderProps) {
   };
 
   return (
-    <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center justify-between px-6 sticky top-0 z-40">
-      <div className="flex items-center gap-2">
+    <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center justify-between px-4 md:px-6 sticky top-0 z-40">
+      <div className="flex items-center gap-3">
+        {/* Hamburguesa solo en móvil */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden h-9 w-9"
+          onClick={() => setMobileNavOpen(true)}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+
         <span className="text-sm text-muted-foreground hidden md:block">
           Bienvenido, <span className="font-medium text-foreground">{displayName}</span>
         </span>
@@ -85,6 +99,9 @@ export function Header({ userEmail, userName, userRole }: HeaderProps) {
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">{displayName}</p>
                 <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
+                {userRole && (
+                  <p className="text-xs text-muted-foreground">{roleLabel[userRole] ?? userRole}</p>
+                )}
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -104,6 +121,18 @@ export function Header({ userEmail, userName, userRole }: HeaderProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Drawer de navegación en móvil */}
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent side="left" className="p-0 w-64">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Navegación</SheetTitle>
+          </SheetHeader>
+          <div className="h-full" onClick={() => setMobileNavOpen(false)}>
+            <Sidebar role={userRole} />
+          </div>
+        </SheetContent>
+      </Sheet>
     </header>
   );
 }

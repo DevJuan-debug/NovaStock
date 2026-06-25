@@ -25,14 +25,17 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar role={dbUser?.role ?? ""} />
-      <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Sidebar solo visible en desktop */}
+      <div className="hidden md:block">
+        <Sidebar role={dbUser?.role ?? ""} />
+      </div>
+      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
         <Header
           userEmail={dbUser?.email ?? user.email ?? ""}
           userName={dbUser?.nombre ?? ""}
           userRole={dbUser?.role ?? ""}
         />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-3 md:p-6">
           {children}
         </main>
       </div>

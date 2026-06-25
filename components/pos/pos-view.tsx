@@ -198,6 +198,8 @@ export function PosView({ productos, categorias, mesas, boliranas, promociones, 
   const searchRef = useRef<HTMLInputElement>(null);
   const initialized = useRef(false);
 
+  const [mobileTab, setMobileTab] = useState<"productos" | "carrito">("productos");
+
   const [apertura, setApertura] = useState<AperturaCaja | null>(initialApertura);
   const [showApertura, setShowApertura] = useState(false);
   const [showCierre, setShowCierre] = useState(false);
@@ -343,6 +345,7 @@ export function PosView({ productos, categorias, mesas, boliranas, promociones, 
     }
 
     store.addItem({ productoId: producto.id, nombre: producto.nombre, precio, cantidad: 1, descuento });
+    setMobileTab("carrito");
 
     const extras = [
       store.esNocturno && producto.precioNocturno ? "precio nocturno" : null,
@@ -514,9 +517,38 @@ export function PosView({ productos, categorias, mesas, boliranas, promociones, 
         )}
       </div>
 
+      {/* Tabs de navegación en móvil */}
+      <div className="flex md:hidden border-b border-border">
+        <button
+          onClick={() => setMobileTab("productos")}
+          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+            mobileTab === "productos"
+              ? "text-primary border-b-2 border-primary"
+              : "text-muted-foreground"
+          }`}
+        >
+          Menú
+        </button>
+        <button
+          onClick={() => setMobileTab("carrito")}
+          className={`flex-1 py-2.5 text-sm font-medium transition-colors relative ${
+            mobileTab === "carrito"
+              ? "text-primary border-b-2 border-primary"
+              : "text-muted-foreground"
+          }`}
+        >
+          Carrito
+          {store.items.length > 0 && (
+            <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
+              {store.items.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       <div className="flex flex-1 overflow-hidden">
       {/* Panel izquierdo: Productos */}
-      <div className="flex flex-col flex-1 border-r border-border overflow-hidden">
+      <div className={`flex-col flex-1 border-r border-border overflow-hidden ${mobileTab === "carrito" ? "hidden md:flex" : "flex"}`}>
         {/* Buscador + Categorías */}
         <div className="p-4 space-y-3 border-b border-border">
           <div className="relative">
@@ -618,7 +650,7 @@ export function PosView({ productos, categorias, mesas, boliranas, promociones, 
       </div>
 
       {/* Panel derecho: Carrito */}
-      <div className="flex flex-col w-96 bg-card">
+      <div className={`flex-col bg-card w-full md:w-96 ${mobileTab === "productos" ? "hidden md:flex" : "flex"}`}>
         {/* Mesa / Bolirana selector + estado cuenta */}
         <div className="p-4 border-b border-border space-y-2">
           {tieneCuentaAbierta && (

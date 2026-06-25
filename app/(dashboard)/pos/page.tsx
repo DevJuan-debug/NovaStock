@@ -50,7 +50,7 @@ export default async function PosPage({
   const horaInicioNocturno = (configRes.data as any)?.valor ?? "22:00";
 
   return (
-    <div className="h-[calc(100vh-5rem)] -m-6">
+    <div className="h-[calc(100dvh-4rem)] -m-3 md:-m-6">
       <PosView
         productos={(productosRes.data ?? []) as Parameters<typeof PosView>[0]["productos"]}
         categorias={(categoriasRes.data ?? []) as Parameters<typeof PosView>[0]["categorias"]}
